@@ -5,13 +5,14 @@ import Mesh
 import Part
 
 # FreeCAD passes its own arguments, so we need to adjust our index
-if len(sys.argv) < 4:
+if len(sys.argv) < 5:
     print("Usage: freecad script.py <input_stl> <output_fcstd>")
     sys.exit(1)
 
-input_stl = sys.argv[-1]
-output_fcstd = sys.argv[-2]
-object_name = os.path.splitext(os.path.basename(input_stl))[0]
+input_stl = sys.argv[-2]
+output_fcstd = sys.argv[-3]
+name = sys.argv[-1]
+object_name = name
 if not os.path.exists(input_stl):
     print(f"Input STL file does not exist: {input_stl}")
     sys.exit(1)
