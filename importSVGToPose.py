@@ -15,6 +15,7 @@ def log_print(message, error=False):
         FreeCAD.Console.PrintMessage(f"{message}\n")
     log_file.write(f"{message}\n")
     log_file.flush()
+    #print(message)
 
 log_print("Script started")
 log_print(f"Number of arguments: {len(sys.argv)}")
@@ -24,14 +25,14 @@ def parse_vector(vector_str):
     try:
         return FreeCAD.Vector(*map(float, vector_str.strip('\'"').split(',')))
     except ValueError as e:
-        log_print(f"Error parsing vector: {vector_str.strip('\'"')}", error=True)
+        log_print(f"Error parsing vector: {vector_str}", error=True)
         raise e
 
 def parse_quaternion(quat_str):
     try:
         return FreeCAD.Rotation(*map(float, quat_str.strip('\'"').split(',')))
     except ValueError as e:
-        log_print(f"Error parsing quaternion: {quat_str.strip('\'"')}", error=True)
+        log_print(f"Error parsing quaternion: {quat_str}", error=True)
         raise e
 
 try:
@@ -55,16 +56,60 @@ try:
     log_print(f"Parsed position: {position}")
     log_print(f"Parsed quaternion: {quaternion}")
 
-    
     log_print(f"Opening FreeCAD file: {input_fcstd}")
     doc = FreeCAD.open(input_fcstd)
+    FreeCAD.setActiveDocument(doc.Name)
+    FreeCAD.ActiveDocument = doc
+    objects_before = set(doc.Objects)
 
     log_print("Creating reference frame")
     ref_frame = doc.addObject('Part::Feature', 'ReferenceFrame')
     ref_frame.Placement = FreeCAD.Placement(position, quaternion)
+    log_print(f"SVG file exists: {os.path.isfile(input_svg)}")
+    log_print(f"SVG file size: {os.path.getsize(input_svg)} bytes")
+
+    with open(input_svg, 'r') as f:
+        log_print(f"First 100 characters of SVG file: {f.read(100)}")
+
+    log_print(f"importSVG module path: {importSVG.__file__}")
+    log_print(f"importSVG.insert function: {importSVG.insert}")
 
     log_print(f"Importing SVG: {input_svg}")
-    imported_objects = importSVG.insert(input_svg, doc.Name)
+    if not os.path.isfile(input_svg):
+        log_print(f"SVG file not found: {input_svg}", error=True)
+        raise ValueError(f"SVG file not found: {input_svg}")
+
+    imported_objects = None
+    try:
+        if hasattr(importSVG, "importOptions"):
+            log_print("Using importOptions")
+            options = importSVG.importOptions(input_svg)
+            options.setOption("Synchronous", True)
+            imported_objects = importSVG.insert(input_svg, doc.Name, options=options)
+            log_print(imported_objects)
+        else:
+            log_print("Not using importOptions")
+            imported_objects = importSVG.insert(input_svg, doc.Name)
+            log_print(imported_objects)
+    except Exception as e:
+        log_print(f"Exception during SVG import: {str(e)}", error=True)
+        raise
+    if imported_objects is None :
+        log_print('WARNING: No objects returned from SVG import', error=True)
+        log_print('Searching for new objects in the document')
+        
+        doc.recompute()
+        objects_after = set(doc.Objects)
+        new_objects = list(objects_after - objects_before)
+        log_print(f"Found {len(new_objects)} new objects after recompute")
+    
+        if len(new_objects) > 0:
+            imported_objects = new_objects
+        else:
+            log_print("No new objects found. Import may have failed.", error=True)
+    log_print(f"Saving document to: {input_fcstd}")
+    doc.saveAs(input_fcstd)
+
     log_print(f"Imported {len(imported_objects)} objects from SVG")
 
     for i, obj in enumerate(imported_objects):
@@ -86,6 +131,7 @@ try:
             
             log_print(f"  Removing original imported object: {obj.Name}")
             doc.removeObject(obj.Name)
+            doc.saveAs(input_fcstd)
 
     log_print("Recomputing document")
     doc.recompute()
@@ -113,6 +159,7 @@ except BaseException as e:
     log_print(traceback.format_exc(), error=True)
     sys.exit(1)
 
-log_print("Script ended")
-log_file.close()
-sys.exit(0)
+finally:
+    log_print("Script ended")
+    log_file.close()
+    sys.exit(0)
