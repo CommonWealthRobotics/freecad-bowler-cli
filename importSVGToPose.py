@@ -6,10 +6,18 @@ import importSVG
 import Part
 import Sketcher
 
-def fc_print(message):
-    FreeCAD.Console.PrintMessage(f"{message}\n")
+# Open a log file
+log_file = open('freecad_script.log', 'w')
 
-fc_print("Script started")
+def log_print(message, error=False):
+    if error:
+        FreeCAD.Console.PrintError(f"{message}\n")
+    else:
+        FreeCAD.Console.PrintMessage(f"{message}\n")
+    log_file.write(f"{message}\n")
+    log_file.flush()
+
+log_print("Script started")
 
 def parse_vector(vector_str):
     return FreeCAD.Vector(*map(float, vector_str.split(',')))
@@ -18,7 +26,7 @@ def parse_quaternion(quat_str):
     return FreeCAD.Rotation(*map(float, quat_str.split(',')))
 
 try:
-    fc_print("Checking arguments")
+    log_print("Checking arguments")
     if len(sys.argv) < 5:
         raise ValueError("Usage: <input_fcstd> <input_svg> <position> <quaternion>")
 
@@ -27,19 +35,19 @@ try:
     position = parse_vector(sys.argv[3])
     quaternion = parse_quaternion(sys.argv[4])
 
-    fc_print(f"Opening FreeCAD file: {input_fcstd}")
+    log_print(f"Opening FreeCAD file: {input_fcstd}")
     doc = FreeCAD.open(input_fcstd)
 
-    fc_print("Creating reference frame")
+    log_print("Creating reference frame")
     ref_frame = doc.addObject('Part::Feature', 'ReferenceFrame')
     ref_frame.Placement = FreeCAD.Placement(position, quaternion)
 
-    fc_print(f"Importing SVG: {input_svg}")
+    log_print(f"Importing SVG: {input_svg}")
     imported_objects = importSVG.insert(input_svg, doc.Name)
-    fc_print(f"Imported {len(imported_objects)} objects from SVG")
+    log_print(f"Imported {len(imported_objects)} objects from SVG")
 
     for i, obj in enumerate(imported_objects):
-        fc_print(f"Processing object {i+1}/{len(imported_objects)}")
+        log_print(f"Processing object {i+1}/{len(imported_objects)}")
         if hasattr(obj, 'Shape'):
             sketch = doc.addObject('Sketcher::SketchObject', f'SVGSketch_{i+1}')
             sketch.Placement = ref_frame.Placement
@@ -53,35 +61,37 @@ try:
                     sketch.addGeometry(Part.Circle(edge.Curve.Center, edge.Curve.Axis, edge.Curve.Radius))
                     edge_count += 1
             
-            fc_print(f"  Added {edge_count} edges to sketch")
+            log_print(f"  Added {edge_count} edges to sketch")
             
-            fc_print(f"  Removing original imported object: {obj.Name}")
+            log_print(f"  Removing original imported object: {obj.Name}")
             doc.removeObject(obj.Name)
 
-    fc_print("Recomputing document")
-    #doc.recompute()
+    log_print("Recomputing document")
+    doc.recompute()
 
-    fc_print("Checking for recompute errors")
-    #errors = doc.recompute(None, True)
+    log_print("Checking for recompute errors")
+    errors = doc.recompute(None, True)
     if errors:
-        FreeCAD.Console.PrintError("Recompute errors occurred:\n")
+        log_print("Recompute errors occurred:", error=True)
         for err in errors:
-            FreeCAD.Console.PrintError(f"  {err[0]}: {err[1]}\n")
+            log_print(f"  {err[0]}: {err[1]}", error=True)
     else:
-        fc_print("Recompute completed successfully")
+        log_print("Recompute completed successfully")
 
-    fc_print(f"Saving document to: {input_fcstd}")
+    log_print(f"Saving document to: {input_fcstd}")
     doc.saveAs(input_fcstd)
 
-    fc_print("Closing document")
+    log_print("Closing document")
     FreeCAD.closeDocument(doc.Name)
 
-    fc_print("Script execution completed successfully")
+    log_print("Script execution completed successfully")
 
 except Exception as e:
-    FreeCAD.Console.PrintError(f"An error occurred: {str(e)}\n")
-    FreeCAD.Console.PrintError("Traceback:\n")
-    FreeCAD.Console.PrintError(traceback.format_exc())
+    log_print(f"An error occurred: {str(e)}", error=True)
+    log_print("Traceback:", error=True)
+    log_print(traceback.format_exc(), error=True)
 
-fc_print("Script ended")
-sys.exit(0)
+log_print("Script ended")
+
+# Close the log file
+log_file.close()
