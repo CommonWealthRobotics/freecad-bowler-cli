@@ -6,7 +6,6 @@ import importSVG
 import Part
 import Sketcher
 
-# Open a log file
 log_file = open('freecad_script.log', 'w')
 
 def log_print(message, error=False):
@@ -18,23 +17,45 @@ def log_print(message, error=False):
     log_file.flush()
 
 log_print("Script started")
+log_print(f"Number of arguments: {len(sys.argv)}")
+log_print(f"Arguments: {sys.argv}")
 
 def parse_vector(vector_str):
-    return FreeCAD.Vector(*map(float, vector_str.split(',')))
+    try:
+        return FreeCAD.Vector(*map(float, vector_str.strip('\'"').split(',')))
+    except ValueError as e:
+        log_print(f"Error parsing vector: {vector_str.strip('\'"')}", error=True)
+        raise e
 
 def parse_quaternion(quat_str):
-    return FreeCAD.Rotation(*map(float, quat_str.split(',')))
+    try:
+        return FreeCAD.Rotation(*map(float, quat_str.strip('\'"').split(',')))
+    except ValueError as e:
+        log_print(f"Error parsing quaternion: {quat_str.strip('\'"')}", error=True)
+        raise e
 
 try:
     log_print("Checking arguments")
-    if len(sys.argv) < 5:
-        raise ValueError("Usage: <input_fcstd> <input_svg> <position> <quaternion>")
+    if len(sys.argv) < 7:
+        raise ValueError(f"Not enough arguments. Usage: <input_fcstd> <input_svg> <position> <quaternion>. Got: {sys.argv}")
 
-    input_fcstd = sys.argv[1]
-    input_svg = sys.argv[2]
-    position = parse_vector(sys.argv[3])
-    quaternion = parse_quaternion(sys.argv[4])
+    input_fcstd = sys.argv[-4]
+    input_svg = sys.argv[-3]
+    position_str = sys.argv[-2]
+    quaternion_str = sys.argv[-1]
 
+    log_print(f"Input FreeCAD file: {input_fcstd}")
+    log_print(f"Input SVG file: {input_svg}")
+    log_print(f"Position string: {position_str}")
+    log_print(f"Quaternion string: {quaternion_str}")
+
+    position = parse_vector(position_str)
+    quaternion = parse_quaternion(quaternion_str)
+
+    log_print(f"Parsed position: {position}")
+    log_print(f"Parsed quaternion: {quaternion}")
+
+    
     log_print(f"Opening FreeCAD file: {input_fcstd}")
     doc = FreeCAD.open(input_fcstd)
 
@@ -86,12 +107,12 @@ try:
 
     log_print("Script execution completed successfully")
 
-except Exception as e:
+except BaseException as e:
     log_print(f"An error occurred: {str(e)}", error=True)
     log_print("Traceback:", error=True)
     log_print(traceback.format_exc(), error=True)
+    sys.exit(1)
 
 log_print("Script ended")
-
-# Close the log file
 log_file.close()
+sys.exit(0)
