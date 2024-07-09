@@ -92,8 +92,8 @@ try:
     log_print(f"Parsed position : {position}")
 
     log_print(f"Opening FreeCAD file: {input_fcstd}")
-    if os.path.exists(output_fcstd):
-        doc = FreeCAD.openDocument(output_fcstd)
+    if os.path.exists(input_fcstd):
+        doc = FreeCAD.openDocument(input_fcstd)
     else:
         doc = FreeCAD.newDocument()
     FreeCAD.setActiveDocument(doc.Name)
