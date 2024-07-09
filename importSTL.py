@@ -6,7 +6,7 @@ import Part
 
 # FreeCAD passes its own arguments, so we need to adjust our index
 if len(sys.argv) < 5:
-    print("Usage: freecad script.py <input_stl> <output_fcstd> <object_name>")
+    print("Usage: freecad script.py  <output_fcstd> <input_stl> <object_name>")
     sys.exit(1)
 
 input_stl = sys.argv[-2]
