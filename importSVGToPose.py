@@ -126,6 +126,10 @@ try:
                 elif isinstance(edge.Curve, Part.Circle):
                     sketch.addGeometry(Part.Circle(edge.Curve.Center, edge.Curve.Axis, edge.Curve.Radius))
                     edge_count += 1
+                else:
+                    log_print("ERROR No type for ",True)
+                    log_print(edge,True)
+                    log_print(edge.Curve,True)
             
             log_print(f"  Added {edge_count} edges to sketch")
             
