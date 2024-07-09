@@ -9,8 +9,8 @@ if len(sys.argv) < 5:
     print("Usage: freecad script.py <input_stl> <output_fcstd> <object_name>")
     sys.exit(1)
 
-input_stl = sys.argv[-3]
-output_fcstd = sys.argv[-2]
+input_stl = sys.argv[-2]
+output_fcstd = sys.argv[-3]
 object_name = sys.argv[-1]
 
 if not os.path.exists(input_stl):
