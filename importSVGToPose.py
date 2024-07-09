@@ -9,10 +9,7 @@ import Sketcher
 log_file = open('freecad_script.log', 'w')
 
 def log_print(message, error=False):
-    if error:
-        FreeCAD.Console.PrintError(f"{message}\n")
-    else:
-        FreeCAD.Console.PrintMessage(f"{message}\n")
+    FreeCAD.Console.PrintError(f"{message}\n")
     log_file.write(f"{message}\n")
     log_file.flush()
     #print(message)
@@ -60,14 +57,14 @@ try:
     doc = FreeCAD.open(input_fcstd)
     FreeCAD.setActiveDocument(doc.Name)
     FreeCAD.ActiveDocument = doc
-    objects_before = set(doc.Objects)
 
     log_print("Creating reference frame")
     ref_frame = doc.addObject('Part::Feature', 'ReferenceFrame')
     ref_frame.Placement = FreeCAD.Placement(position, quaternion)
     log_print(f"SVG file exists: {os.path.isfile(input_svg)}")
     log_print(f"SVG file size: {os.path.getsize(input_svg)} bytes")
-
+    # After setting the reference frame so it is not deleted later
+    objects_before = set(doc.Objects)
     with open(input_svg, 'r') as f:
         log_print(f"First 100 characters of SVG file: {f.read(100)}")
 
@@ -116,6 +113,8 @@ try:
         log_print(f"Processing object {i+1}/{len(imported_objects)}")
         if hasattr(obj, 'Shape'):
             sketch = doc.addObject('Sketcher::SketchObject', f'SVGSketch_{i+1}')
+            if sketch is None:
+                continue
             sketch.Placement = ref_frame.Placement
             
             edge_count = 0
@@ -126,6 +125,19 @@ try:
                 elif isinstance(edge.Curve, Part.Circle):
                     sketch.addGeometry(Part.Circle(edge.Curve.Center, edge.Curve.Axis, edge.Curve.Radius))
                     edge_count += 1
+                elif isinstance(edge.Curve, Part.BSplineCurve):
+                    bspline = edge.Curve
+                    poles = bspline.getPoles()
+                    mults = bspline.getMultiplicities()
+                    knots = bspline.getKnots()
+                    periodic = bspline.isPeriodic()
+                    degree = bspline.Degree
+                    weights = bspline.getWeights() if bspline.isRational() else None
+                    
+                    # Add the BSpline to the sketch
+                    sketch.addGeometry(Part.BSplineCurve(poles, mults, knots, periodic, degree, weights))
+                    edge_count += 1
+                    log_print(f"  Added BSplineCurve to sketch")
                 else:
                     log_print("ERROR No type for ",True)
                     log_print(edge,True)
@@ -135,6 +147,7 @@ try:
             
             log_print(f"  Removing original imported object: {obj.Name}")
             doc.removeObject(obj.Name)
+            doc.recompute()
             doc.saveAs(input_fcstd)
 
     log_print("Recomputing document")
