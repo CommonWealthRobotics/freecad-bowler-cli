@@ -162,7 +162,7 @@ try:
     sketch = body.newObject('Sketcher::SketchObject', f'SVGSketch_{sliceName}')
     sketch.Placement = ref_frame.Placement
     for i, obj in enumerate(imported_objects):
-        log_print(f"Processing object {i+1}/{len(imported_objects)}")
+        #log_print(f"Processing object {i+1}/{len(imported_objects)}")
         if hasattr(obj, 'Shape'):
 
             
@@ -184,14 +184,14 @@ try:
                     for j in range(len(offset_points) - 1):
                         sketch.addGeometry(Part.LineSegment(offset_points[j], offset_points[j+1]))
                         edge_count += 1
-                    log_print(f"  Approximated BSplineCurve with {len(points)-1} line segments")
+                    #log_print(f"  Approximated BSplineCurve with {len(points)-1} line segments")
                 else:
                     log_print(f"  Unsupported curve type: {type(edge.Curve).__name__}", error=True)
 
             
-            log_print(f"  Added {edge_count} edges to sketch")
+            #log_print(f"  Added {edge_count} edges to sketch")
             
-            log_print(f"  Removing original imported object: {obj.Name}")
+            #log_print(f"  Removing original imported object: {obj.Name}")
             doc.removeObject(obj.Name)
 
 
