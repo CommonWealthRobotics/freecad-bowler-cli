@@ -34,13 +34,14 @@ def parse_quaternion(quat_str):
 
 try:
     log_print("Checking arguments")
-    if len(sys.argv) < 7:
+    if len(sys.argv) < 8:
         raise ValueError(f"Not enough arguments. Usage: <input_fcstd> <input_svg> <position> <quaternion>. Got: {sys.argv}")
 
-    input_fcstd = sys.argv[-4]
-    input_svg = sys.argv[-3]
-    position_str = sys.argv[-2]
-    quaternion_str = sys.argv[-1]
+    input_fcstd = sys.argv[-5]
+    input_svg = sys.argv[-4]
+    position_str = sys.argv[-3]
+    quaternion_str = sys.argv[-2]
+    sliceName =  sys.argv[-1]
 
     log_print(f"Input FreeCAD file: {input_fcstd}")
     log_print(f"Input SVG file: {input_svg}")
@@ -108,14 +109,12 @@ try:
     doc.saveAs(input_fcstd)
 
     log_print(f"Imported {len(imported_objects)} objects from SVG")
-
+    sketch = doc.addObject('Sketcher::SketchObject', f'SVGSketch_{sliceName}')
+    sketch.Placement = ref_frame.Placement
     for i, obj in enumerate(imported_objects):
         log_print(f"Processing object {i+1}/{len(imported_objects)}")
         if hasattr(obj, 'Shape'):
-            sketch = doc.addObject('Sketcher::SketchObject', f'SVGSketch_{i+1}')
-            if sketch is None:
-                continue
-            sketch.Placement = ref_frame.Placement
+
             
             edge_count = 0
             for edge in obj.Shape.Edges:
