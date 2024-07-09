@@ -84,10 +84,10 @@ try:
     position = parse_vector(position_str)
     quaternion = parse_quaternion(quaternion_str)
     # Create a rotation matrix for 180 degrees around X-axis
-    rotation_matrix = create_rotation_matrix(180, FreeCAD.Vector(1, 0, 0))
     log_print(f"Parsed quaternion IN : {quaternion}")
     # Apply the rotation to the quaternion
-    quaternion = quaternion.multiply(FreeCAD.Rotation(rotation_matrix))
+    #quaternion = quaternion.multiply(FreeCAD.Rotation(create_rotation_matrix(180, FreeCAD.Vector(0, 1, 0))))
+    #quaternion = quaternion.multiply(FreeCAD.Rotation(create_rotation_matrix(180, FreeCAD.Vector(0, 0, 1))))
     log_print(f"Parsed quaternion ADJ: {quaternion}")
     log_print(f"Parsed position : {position}")
 
