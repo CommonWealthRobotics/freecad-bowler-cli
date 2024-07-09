@@ -31,11 +31,11 @@ mesh_object = doc.addObject("Mesh::Feature", f"{object_name}_Mesh")
 mesh_object.Mesh = mesh
 
 # Optional: Convert mesh to solid
-shape = Part.Shape()
-shape.makeShapeFromMesh(mesh.Topology, 0.1)
-solid = Part.makeSolid(shape)
-solid_object = doc.addObject("Part::Feature", f"{object_name}_Solid")
-solid_object.Shape = solid
+# shape = Part.Shape()
+# shape.makeShapeFromMesh(mesh.Topology, 0.1)
+# solid = Part.makeSolid(shape)
+# solid_object = doc.addObject("Part::Feature", f"{object_name}_Solid")
+# solid_object.Shape = solid
 
 # Recompute the document
 doc.recompute()

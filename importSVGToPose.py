@@ -6,6 +6,7 @@ import importSVG
 import Part
 import Sketcher
 import xml.etree.ElementTree as ET
+import math
 
 log_file = open('freecad_script.log', 'w')
 
@@ -14,7 +15,19 @@ def log_print(message, error=False):
     log_file.write(f"{message}\n")
     log_file.flush()
     #print(message)
-
+def create_rotation_matrix(angle, axis):
+    """Create a rotation matrix for a given angle (in degrees) around a given axis."""
+    angle_rad = math.radians(angle)
+    c = math.cos(angle_rad)
+    s = math.sin(angle_rad)
+    t = 1 - c
+    x, y, z = axis.normalize()
+    return FreeCAD.Matrix(
+        t*x*x + c,   t*x*y - z*s, t*x*z + y*s, 0,
+        t*x*y + z*s, t*y*y + c,   t*y*z - x*s, 0,
+        t*x*z - y*s, t*y*z + x*s, t*z*z + c,   0,
+        0,           0,           0,           1
+    )
 log_print("Script started")
 log_print(f"Number of arguments: {len(sys.argv)}")
 log_print(f"Arguments: {sys.argv}")
@@ -54,15 +67,15 @@ def get_svg_dimensions(svg_file):
     return parse_dimension(width), parse_dimension(height)
 try:
     log_print("Checking arguments")
-    if len(sys.argv) < 8:
+    if len(sys.argv) < 9:
         raise ValueError(f"Not enough arguments. Usage: <input_fcstd> <input_svg> <position> <quaternion>. Got: {sys.argv}")
 
-    input_fcstd = sys.argv[-5]
-    input_svg = sys.argv[-4]
-    position_str = sys.argv[-3]
-    quaternion_str = sys.argv[-2]
-    sliceName =  sys.argv[-1]
-
+    input_fcstd = sys.argv[-6]
+    input_svg = sys.argv[-5]
+    position_str = sys.argv[-4]
+    quaternion_str = sys.argv[-3]
+    sliceName =  sys.argv[-2]
+    bodyName =  sys.argv[-1]
     log_print(f"Input FreeCAD file: {input_fcstd}")
     log_print(f"Input SVG file: {input_svg}")
     log_print(f"Position string: {position_str}")
@@ -70,9 +83,13 @@ try:
 
     position = parse_vector(position_str)
     quaternion = parse_quaternion(quaternion_str)
-
-    log_print(f"Parsed position: {position}")
-    log_print(f"Parsed quaternion: {quaternion}")
+    # Create a rotation matrix for 180 degrees around X-axis
+    rotation_matrix = create_rotation_matrix(180, FreeCAD.Vector(1, 0, 0))
+    log_print(f"Parsed quaternion IN : {quaternion}")
+    # Apply the rotation to the quaternion
+    quaternion = quaternion.multiply(FreeCAD.Rotation(rotation_matrix))
+    log_print(f"Parsed quaternion ADJ: {quaternion}")
+    log_print(f"Parsed position : {position}")
 
     log_print(f"Opening FreeCAD file: {input_fcstd}")
     doc = FreeCAD.open(input_fcstd)
@@ -133,7 +150,16 @@ try:
     log_print(f"Document applying offset: ({svg_width}, {svg_height})")
 
     log_print(f"Imported {len(imported_objects)} objects from SVG")
-    sketch = doc.addObject('Sketcher::SketchObject', f'SVGSketch_{sliceName}')
+    body = doc.getObject(bodyName)
+    if not body:
+        log_print(f"Creating new body: {bodyName}")
+        body = doc.addObject('PartDesign::Body', bodyName)
+    else:
+        log_print(f"Using existing body: {bodyName}")
+        # Create a datum plane
+    datum_plane = body.newObject('PartDesign::Plane', f'DatumPlane_{sliceName}')
+    datum_plane.Placement = ref_frame.Placement
+    sketch = body.newObject('Sketcher::SketchObject', f'SVGSketch_{sliceName}')
     sketch.Placement = ref_frame.Placement
     for i, obj in enumerate(imported_objects):
         log_print(f"Processing object {i+1}/{len(imported_objects)}")
