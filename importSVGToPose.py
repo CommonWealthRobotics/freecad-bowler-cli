@@ -5,6 +5,7 @@ import FreeCAD
 import importSVG
 import Part
 import Sketcher
+import xml.etree.ElementTree as ET
 
 log_file = open('freecad_script.log', 'w')
 
@@ -32,6 +33,25 @@ def parse_quaternion(quat_str):
         log_print(f"Error parsing quaternion: {quat_str}", error=True)
         raise e
 
+def get_svg_dimensions(svg_file):
+    tree = ET.parse(svg_file)
+    root = tree.getroot()
+    
+    width = root.get('width')
+    height = root.get('height')
+    
+    # Convert to float and handle units if necessary
+    def parse_dimension(dim):
+        if dim.endswith('mm'):
+            return float(dim[:-2])
+        elif dim.endswith('cm'):
+            return float(dim[:-2]) * 10
+        elif dim.endswith('in'):
+            return float(dim[:-2]) * 25.4
+        else:
+            return float(dim)
+    
+    return parse_dimension(width), parse_dimension(height)
 try:
     log_print("Checking arguments")
     if len(sys.argv) < 8:
@@ -107,6 +127,10 @@ try:
             log_print("No new objects found. Import may have failed.", error=True)
     log_print(f"Saving document to: {input_fcstd}")
     doc.saveAs(input_fcstd)
+    svg_width, svg_height = get_svg_dimensions(input_svg)
+    def apply_offset(point):
+        return FreeCAD.Vector(point.x ,  point.y +svg_height , point.z)
+    log_print(f"Document applying offset: ({svg_width}, {svg_height})")
 
     log_print(f"Imported {len(imported_objects)} objects from SVG")
     sketch = doc.addObject('Sketcher::SketchObject', f'SVGSketch_{sliceName}')
@@ -119,28 +143,25 @@ try:
             edge_count = 0
             for edge in obj.Shape.Edges:
                 if isinstance(edge.Curve, Part.Line):
-                    sketch.addGeometry(Part.LineSegment(edge.Vertexes[0].Point, edge.Vertexes[1].Point))
+                    start = apply_offset(edge.Vertexes[0].Point)
+                    end = apply_offset(edge.Vertexes[1].Point)
+                    sketch.addGeometry(Part.LineSegment(start, end))
                     edge_count += 1
                 elif isinstance(edge.Curve, Part.Circle):
-                    sketch.addGeometry(Part.Circle(edge.Curve.Center, edge.Curve.Axis, edge.Curve.Radius))
+                    center = apply_offset(edge.Curve.Center)
+                    sketch.addGeometry(Part.Circle(center, edge.Curve.Axis, edge.Curve.Radius))
                     edge_count += 1
                 elif isinstance(edge.Curve, Part.BSplineCurve):
-                    bspline = edge.Curve
-                    poles = bspline.getPoles()
-                    mults = bspline.getMultiplicities()
-                    knots = bspline.getKnots()
-                    periodic = bspline.isPeriodic()
-                    degree = bspline.Degree
-                    weights = bspline.getWeights() if bspline.isRational() else None
-                    
-                    # Add the BSpline to the sketch
-                    sketch.addGeometry(Part.BSplineCurve(poles, mults, knots, periodic, degree, weights))
-                    edge_count += 1
-                    log_print(f"  Added BSplineCurve to sketch")
+                    # Approximate the BSplineCurve with a series of line segments
+                    points = edge.discretize(Number=20)  # You can adjust the number of points
+                    offset_points = [apply_offset(p) for p in points]
+                    for j in range(len(offset_points) - 1):
+                        sketch.addGeometry(Part.LineSegment(offset_points[j], offset_points[j+1]))
+                        edge_count += 1
+                    log_print(f"  Approximated BSplineCurve with {len(points)-1} line segments")
                 else:
-                    log_print("ERROR No type for ",True)
-                    log_print(edge,True)
-                    log_print(edge.Curve,True)
+                    log_print(f"  Unsupported curve type: {type(edge.Curve).__name__}", error=True)
+
             
             log_print(f"  Added {edge_count} edges to sketch")
             
