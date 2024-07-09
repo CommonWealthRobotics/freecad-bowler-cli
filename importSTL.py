@@ -6,19 +6,24 @@ import Part
 
 # FreeCAD passes its own arguments, so we need to adjust our index
 if len(sys.argv) < 5:
-    print("Usage: freecad script.py <input_stl> <output_fcstd>")
+    print("Usage: freecad script.py <input_stl> <output_fcstd> <object_name>")
     sys.exit(1)
 
-input_stl = sys.argv[-2]
-output_fcstd = sys.argv[-3]
-name = sys.argv[-1]
-object_name = name
+input_stl = sys.argv[-3]
+output_fcstd = sys.argv[-2]
+object_name = sys.argv[-1]
+
 if not os.path.exists(input_stl):
     print(f"Input STL file does not exist: {input_stl}")
     sys.exit(1)
 
-# Create a new document
-doc = FreeCAD.newDocument()
+# Open the output_fcstd file or create a new document if it doesn't exist
+if os.path.exists(output_fcstd):
+    doc = FreeCAD.openDocument(output_fcstd)
+else:
+    doc = FreeCAD.newDocument()
+
+FreeCAD.setActiveDocument(doc.Name)
 
 # Import the STL file
 mesh = Mesh.Mesh(input_stl)

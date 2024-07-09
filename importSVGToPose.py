@@ -146,9 +146,8 @@ try:
             log_print(f"  Added {edge_count} edges to sketch")
             
             log_print(f"  Removing original imported object: {obj.Name}")
-            doc.removeObject(obj.Name)
-            doc.recompute()
-            doc.saveAs(input_fcstd)
+            #doc.removeObject(obj.Name)
+
 
     log_print("Recomputing document")
     doc.recompute()
