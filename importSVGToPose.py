@@ -182,7 +182,7 @@ try:
                     edge_count += 1
                 elif isinstance(edge.Curve, Part.BSplineCurve):
                     # Approximate the BSplineCurve with a series of line segments
-                    points = edge.discretize(Number=20)  # You can adjust the number of points
+                    points = edge.discretize(Number=2)  # You can adjust the number of points
                     offset_points = [apply_offset(p) for p in points]
                     for j in range(len(offset_points) - 1):
                         sketch.addGeometry(Part.LineSegment(offset_points[j], offset_points[j+1]))
