@@ -15,10 +15,21 @@ output_file = sys.argv[4]
 # Open the FreeCAD file
 doc = FreeCAD.open(input_file)
 
-# Create a unified mesh from all objects
+# Create a unified mesh from the top-level solid objects. Skipping children
+# (e.g. the Pad/Sketch features inside a PartDesign::Body) avoids exporting
+# the same geometry multiple times, which breaks the mesh when merged.
+children = set()
+for obj in doc.Objects:
+    for child in getattr(obj, "Group", []):
+        children.add(child.Name)
+
 meshes = []
 for obj in doc.Objects:
+    if obj.Name in children:
+        continue
     if hasattr(obj, "Shape"):
+        if not obj.Shape.Solids:
+            continue  # sketches and other non-solid shapes cannot be meshed
         # Convert shape to mesh with reasonable precision
         mesh = MeshPart.meshFromShape(obj.Shape, LinearDeflection=0.1, AngularDeflection=0.523599)
         meshes.append(mesh)

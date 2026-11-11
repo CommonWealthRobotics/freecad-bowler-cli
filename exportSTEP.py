@@ -18,8 +18,19 @@ if not os.path.exists(input_fcstd):
 # Open the FreeCAD file
 doc = FreeCAD.openDocument(input_fcstd)
 
-# Gather every object that carries a shape (Part features, PartDesign bodies, etc.)
-objects = [obj for obj in doc.Objects if hasattr(obj, "Shape") and not obj.Shape.isNull()]
+# Gather top-level objects that carry a shape (Part features, PartDesign
+# bodies, etc.). Skipping children (e.g. the Pad/Sketch features inside a
+# PartDesign::Body) avoids exporting the same geometry multiple times.
+children = set()
+for obj in doc.Objects:
+    for child in getattr(obj, "Group", []):
+        children.add(child.Name)
+
+objects = [
+    obj
+    for obj in doc.Objects
+    if obj.Name not in children and hasattr(obj, "Shape") and not obj.Shape.isNull()
+]
 
 if not objects:
     print("No objects with shapes found in the document")

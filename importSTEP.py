@@ -24,31 +24,45 @@ else:
 
 FreeCAD.setActiveDocument(doc.Name)
 
-# Import the STEP file into the active document
-# (Import.insert is the GUI import command; it creates the objects for us)
-imported_objects = Import.insert(input_step, doc.Name)
+# Snapshot so we can tell the importer's objects from ours afterwards
+objects_before = set(doc.Objects)
+
+# Import the STEP file into the active document; the importer creates one
+# Part::Feature per solid, grouped under an App::Part container named after
+# the source file.
+Import.insert(input_step, doc.Name)
 
 doc.recompute()
 
-if not imported_objects:
-    print(f"STEP import failed: no objects found in {input_step}")
-    sys.exit(1)
+imported_objects = [obj for obj in doc.Objects if obj not in objects_before]
 
-# FreeCAD's importer makes one Part::Feature per solid, each with its own placement.
-# Re-import those shapes as our own named Part::Feature objects so the caller can
-# address them by name, and remove the generically-named importer objects.
+# Collect every imported solid and re-home it under our own named feature so
+# the caller can address the result by object_name
 shape_list = []
 for obj in imported_objects:
+    if obj.TypeId == "App::Part":
+        continue  # container: its shape would duplicate the child features
     if hasattr(obj, "Shape") and not obj.Shape.isNull():
-        shape_list.append(obj.Shape)
+        shape_list.extend(obj.Shape.Solids)
+
+if not shape_list:
+    print(f"STEP import failed: no solids found in {input_step}")
+    sys.exit(1)
 
 for i, shape in enumerate(shape_list):
     name = object_name if len(shape_list) == 1 else f"{object_name}_{i}"
     new_object = doc.addObject("Part::Feature", name)
     new_object.Shape = shape
 
+# Remove everything the importer created, keeping only our named features;
+# removing a container deletes its children (origin planes/axes) with it
 for obj in imported_objects:
-    doc.removeObject(obj.Name)
+    try:
+        name = obj.Name
+    except ReferenceError:
+        continue  # already deleted as a child of an earlier removal
+    if doc.getObject(name) is not None:
+        doc.removeObject(name)
 
 doc.recompute()
 
