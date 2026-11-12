@@ -27,17 +27,14 @@ FreeCAD.setActiveDocument(doc.Name)
 # Snapshot so we can tell the importer's objects from ours afterwards
 objects_before = set(doc.Objects)
 
-# Built-in STEP import
+# Import the STEP file into the active document; the importer creates one
+# Part::Feature per solid, grouped under an App::Part container named after
+# the source file.
 Import.insert(input_step, doc.Name)
+
 doc.recompute()
 
 imported_objects = [obj for obj in doc.Objects if obj not in objects_before]
-
-# Diagnostics: show exactly what the importer produced
-print(f"Importer created {len(imported_objects)} object(s):")
-for obj in imported_objects:
-    has_shape = hasattr(obj, "Shape") and not obj.Shape.isNull()
-    print(f"  {obj.Name} [{obj.TypeId}] shape={has_shape}")
 
 # Collect every imported solid and re-home it under our own named feature so
 # the caller can address the result by object_name
@@ -52,13 +49,11 @@ if not shape_list:
     print(f"STEP import failed: no solids found in {input_step}")
     sys.exit(1)
 
-new_objects = []
 for i, shape in enumerate(shape_list):
     name = object_name if len(shape_list) == 1 else f"{object_name}_{i}"
     new_object = doc.addObject("Part::Feature", name)
     new_object.Shape = shape
     new_object.Visibility = True
-    new_objects.append(new_object)
 
 # Remove everything the importer created, keeping only our named features;
 # removing a container deletes its children (origin planes/axes) with it
@@ -72,14 +67,13 @@ for obj in imported_objects:
 
 doc.recompute()
 
-# Make sure the final objects are visible
-for obj in new_objects:
-    obj.Visibility = True
-
+# Save the document
 doc.saveAs(output_fcstd)
 
-print(f"STEP imported and saved to: {output_fcstd} "
-      f"({len(new_objects)} object(s): {[o.Name for o in new_objects]})")
+print(f"STEP imported and saved to: {output_fcstd}")
 
+# Close the document
 FreeCAD.closeDocument(doc.Name)
+
+# Exit the script
 sys.exit(0)
