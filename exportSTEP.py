@@ -122,8 +122,12 @@ def add_tessellations(path, shapes):
             f"#{brep},#{tessellated})"
         )
 
-    with open(path, "a") as f:
-        f.write("\n".join(additions) + "\n")
+    # the data section ends at ENDSEC; appending after it (or after the file's
+    # END marker) would put the entities outside the part the parser reads
+    insert_at = text.rindex("ENDSEC;")
+    text = text[:insert_at] + "\n".join(additions) + "\n" + text[insert_at:]
+    with open(path, "w") as f:
+        f.write(text)
 
 
 add_tessellations(output_step, objects)
