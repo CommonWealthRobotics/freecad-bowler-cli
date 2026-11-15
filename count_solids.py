@@ -1,6 +1,7 @@
 """Counts the solids each Part feature of a FreeCAD document carries.
 
 Usage:
+    freecad -c count_solids.py <document.fcstd> <report.json>
     FCSTD_FILE=document.fcstd SOLIDS_REPORT=report.json freecadcmd -c count_solids.py
 
 Writes {"solids": <n>, "shells": <n>, "compounds": <n>} for a caller that
@@ -16,10 +17,20 @@ import sys
 import FreeCAD
 import Part
 
-# the caller passes the paths as environment variables: freecadcmd treats
-# trailing file arguments as documents to import, which a JSON report is not
-document = os.environ["FCSTD_FILE"]
-report = os.environ["SOLIDS_REPORT"]
+# the paths arrive either as the last two command-line arguments (the same way
+# importSTEP.py takes them, which works under every launcher) or as environment
+# variables for a freecadcmd caller, whose launcher imports trailing file
+# arguments as documents
+args = [a for a in sys.argv[1:] if not a.startswith("-")]
+if len(args) >= 2:
+    document, report = args[-2], args[-1]
+elif "FCSTD_FILE" in os.environ and "SOLIDS_REPORT" in os.environ:
+    document = os.environ["FCSTD_FILE"]
+    report = os.environ["SOLIDS_REPORT"]
+else:
+    raise SystemExit(
+        "usage: freecad -c count_solids.py <document.fcstd> <report.json>"
+        " (or set FCSTD_FILE and SOLIDS_REPORT)")
 
 doc = FreeCAD.openDocument(document)
 solids = 0
