@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 import traceback
 import FreeCAD
 import importSVG
@@ -222,9 +223,11 @@ except BaseException as e:
     log_print(f"An error occurred: {str(e)}", error=True)
     log_print("Traceback:", error=True)
     log_print(traceback.format_exc(), error=True)
-    sys.exit(1)
-
-finally:
-    log_print("Script ended")
+    log_print("Script ended", error=True)
     log_file.close()
-    sys.exit(0)
+    time.sleep(0.2)  # let the log drain before the hard exit
+    os._exit(1)
+
+log_print("Script ended")
+log_file.close()
+os._exit(0)

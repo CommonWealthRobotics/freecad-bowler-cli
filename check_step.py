@@ -29,6 +29,7 @@ import math
 import os
 import re
 import sys
+import time
 import traceback
 
 import FreeCAD
@@ -349,6 +350,7 @@ def main():
         traceback.print_exc()
         print("GATE: FAIL (exception)")
         code = 3
+    time.sleep(0.2)  # let the log drain before the hard exit
     sys.stdout.flush()
     sys.stderr.flush()
     os._exit(code)

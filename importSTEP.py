@@ -1,79 +1,101 @@
-import sys
 import os
+import sys
+import time
+import traceback
+
 import FreeCAD
 import Import
 
-# FreeCAD passes its own arguments, so we take ours from the end of the list
-if len(sys.argv) < 5:
-    print("Usage: freecad -c importSTEP.py <output_fcstd> <input_step> <object_name>")
-    sys.exit(1)
 
-input_step = sys.argv[-2]
-output_fcstd = sys.argv[-3]
-object_name = sys.argv[-1]
+def finish(code):
+    # FreeCAD drops into an interactive console after a script returns, and
+    # that console reads a stdin that never ends on Windows CI; the only exit
+    # that cannot hang is a hard one
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(code)
 
-if not os.path.exists(input_step):
-    print(f"Input STEP file does not exist: {input_step}")
-    sys.exit(1)
 
-# Open the output_fcstd file or create a new document if it doesn't exist
-if os.path.exists(output_fcstd):
-    doc = FreeCAD.openDocument(output_fcstd)
-else:
-    doc = FreeCAD.newDocument()
+def run():
+    # FreeCAD passes its own arguments, so we take ours from the end of the list
+    if len(sys.argv) < 5:
+        print("Usage: freecad -c importSTEP.py <output_fcstd> <input_step> <object_name>")
+        finish(1)
 
-FreeCAD.setActiveDocument(doc.Name)
+    input_step = sys.argv[-2]
+    output_fcstd = sys.argv[-3]
+    object_name = sys.argv[-1]
 
-# Snapshot so we can tell the importer's objects from ours afterwards
-objects_before = set(doc.Objects)
+    if not os.path.exists(input_step):
+        print(f"Input STEP file does not exist: {input_step}")
+        finish(1)
 
-# Import the STEP file into the active document; the importer creates one
-# Part::Feature per solid, grouped under an App::Part container named after
-# the source file.
-Import.insert(input_step, doc.Name)
+    # Open the output_fcstd file or create a new document if it doesn't exist
+    if os.path.exists(output_fcstd):
+        doc = FreeCAD.openDocument(output_fcstd)
+    else:
+        doc = FreeCAD.newDocument()
 
-doc.recompute()
+    FreeCAD.setActiveDocument(doc.Name)
 
-imported_objects = [obj for obj in doc.Objects if obj not in objects_before]
+    # Snapshot so we can tell the importer's objects from ours afterwards
+    objects_before = set(doc.Objects)
 
-# Collect every imported solid and re-home it under our own named feature so
-# the caller can address the result by object_name
-shape_list = []
-for obj in imported_objects:
-    if obj.TypeId == "App::Part":
-        continue  # container: its shape would duplicate the child features
-    if hasattr(obj, "Shape") and not obj.Shape.isNull():
-        shape_list.extend(obj.Shape.Solids)
+    # Import the STEP file into the active document; the importer creates one
+    # Part::Feature per solid, grouped under an App::Part container named after
+    # the source file.
+    Import.insert(input_step, doc.Name)
 
-if not shape_list:
-    print(f"STEP import failed: no solids found in {input_step}")
-    sys.exit(1)
+    doc.recompute()
 
-for i, shape in enumerate(shape_list):
-    name = object_name if len(shape_list) == 1 else f"{object_name}_{i}"
-    new_object = doc.addObject("Part::Feature", name)
-    new_object.Shape = shape
-    new_object.Visibility = True
+    imported_objects = [obj for obj in doc.Objects if obj not in objects_before]
 
-# Remove everything the importer created, keeping only our named features;
-# removing a container deletes its children (origin planes/axes) with it
-for obj in imported_objects:
-    try:
-        name = obj.Name
-    except ReferenceError:
-        continue  # already deleted as a child of an earlier removal
-    if doc.getObject(name) is not None:
-        doc.removeObject(name)
+    # Collect every imported solid and re-home it under our own named feature so
+    # the caller can address the result by object_name
+    shape_list = []
+    for obj in imported_objects:
+        if obj.TypeId == "App::Part":
+            continue  # container: its shape would duplicate the child features
+        if hasattr(obj, "Shape") and not obj.Shape.isNull():
+            shape_list.extend(obj.Shape.Solids)
 
-doc.recompute()
+    if not shape_list:
+        print(f"STEP import failed: no solids found in {input_step}")
+        finish(1)
 
-# Save the document
-doc.saveAs(output_fcstd)
+    for i, shape in enumerate(shape_list):
+        name = object_name if len(shape_list) == 1 else f"{object_name}_{i}"
+        new_object = doc.addObject("Part::Feature", name)
+        new_object.Shape = shape
+        new_object.Visibility = True
 
-print(f"STEP imported and saved to: {output_fcstd}")
+    # Remove everything the importer created, keeping only our named features;
+    # removing a container deletes its children (origin planes/axes) with it
+    for obj in imported_objects:
+        try:
+            name = obj.Name
+        except ReferenceError:
+            continue  # already deleted as a child of an earlier removal
+        if doc.getObject(name) is not None:
+            doc.removeObject(name)
 
-# Close the document
-FreeCAD.closeDocument(doc.Name)
+    doc.recompute()
 
-# Exit the script
-sys.exit(0)
+    # Save the document
+    doc.saveAs(output_fcstd)
+
+    print(f"STEP imported and saved to: {output_fcstd}")
+
+    # Close the document
+    FreeCAD.closeDocument(doc.Name)
+
+    # Exit the script
+    finish(0)
+
+
+try:
+    run()
+except BaseException:
+    traceback.print_exc()
+    time.sleep(0.2)  # let the log drain before the hard exit
+    finish(1)

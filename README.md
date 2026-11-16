@@ -8,6 +8,7 @@ arguments from the end of the command line (FreeCAD prepends its own args):
 freecadcmd -c <script.py> <args...>
 ```
 
+
 ## Scripts
 
 ### newFile.py — create an empty FCStd document
